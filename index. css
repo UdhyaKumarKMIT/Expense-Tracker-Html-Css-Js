@@ -1,0 +1,32 @@
+
+
+body {
+  background-color: #0d1117;
+  color: #c9d1d9;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+
+
+.tech-bg {
+  background: linear-gradient(145deg, #0f2027, #203a43, #2c5364);
+}
+
+.accordion-button:not(.collapsed) {
+  color: #0dcaf0;
+  background-color: #161b22;
+}
+
+.category-item {
+  cursor: pointer;
+}
+
+.category-item:hover {
+  background-color: #0dcaf0;
+  color: black;
+}
+
+.list-group-item {
+  background-color: #161b22;
+  color: white;
+}
