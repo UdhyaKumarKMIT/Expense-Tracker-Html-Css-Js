@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Expense Tracker</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body.dark-theme {
       background-color: #121212;
@@ -22,17 +22,16 @@
       color: white;
       border-color: #444;
     }
-
     body.light-theme {
       background-color: #f8f9fa;
       color: #212529;
     }
-    body.light-theme .accordion-item, 
+    body.light-theme .accordion-item,
     body.light-theme .accordion-button {
       background-color: white;
       color: black;
     }
-    body.light-theme .form-control, 
+    body.light-theme .form-control,
     body.light-theme .list-group-item {
       background-color: white;
       color: #212529;
@@ -41,32 +40,26 @@
   </style>
 </head>
 <body class="dark-theme wrapper">
-  <!-- Toggle Switch -->
   <div class="position-absolute top-0 end-0 p-3">
     <div class="form-check form-switch text-white">
       <input class="form-check-input" type="checkbox" id="themeToggle">
       <label class="form-check-label" for="themeToggle" id="themeLabel">Light Mode</label>
-
     </div>
   </div>
   <div class="d-flex align-items-center justify-content-center min-vh-100">
     <div class="container p-4 rounded shadow-lg" style="max-width: 600px;">
       <h2 class="text-center mb-4">💰 Expense Tracker</h2>
-
       <div class="mb-3">
         <label>Amount Spent</label>
         <input type="number" id="amountInput" class="form-control" placeholder="Spent amount">
       </div>
-
       <div class="mb-3">
         <label>Description</label>
         <input type="text" id="descInput" class="form-control" placeholder="Description">
       </div>
-
       <div class="mb-3">
         <label>Category</label>
         <input type="text" id="selectedCategory" class="form-control mb-2" placeholder="Choose category" readonly>
-
         <div class="accordion" id="categoryAccordion">
           <div class="accordion-item">
             <h2 class="accordion-header" id="headingCategory">
@@ -89,68 +82,84 @@
           </div>
         </div>
       </div>
-
       <button class="btn btn-primary w-100 mb-3" id="addBtn">Add Expense</button>
-
       <h5>Total: ₹<span id="totalAmount">0</span></h5>
-
-      <div class="list-group mt-3" id="expenseList">
-        <!-- Items will be added here -->
-      </div>
+      <div class="list-group mt-3" id="expenseList"></div>
+      <canvas id="expenseChart" class="mt-4"></canvas>
     </div>
   </div>
-
-  
-<section class="wrapper">
-    <div id="stars"></div>
-    <div id="stars2"></div>
-    <div id="stars3"></div>
-</section>
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js"></script>
-
   <script>
-   const toggleSwitch = document.getElementById('themeToggle');
-const themeLabel = document.getElementById('themeLabel');
-
-toggleSwitch.addEventListener('change', () => {
-  document.body.classList.toggle('light-theme');
-  document.body.classList.toggle('dark-theme');
-
-  // Update label color
-  if (document.body.classList.contains('light-theme')) {
-    themeLabel.classList.remove('text-white');
-    themeLabel.classList.add('text-dark');
-  } else {
-    themeLabel.classList.remove('text-dark');
-    themeLabel.classList.add('text-white');
-  }
-});
+    const toggleSwitch = document.getElementById('themeToggle');
+    const themeLabel = document.getElementById('themeLabel');
+    toggleSwitch.addEventListener('change', () => {
+      document.body.classList.toggle('light-theme');
+      document.body.classList.toggle('dark-theme');
+      if (document.body.classList.contains('light-theme')) {
+        themeLabel.classList.remove('text-white');
+        themeLabel.classList.add('text-dark');
+      } else {
+        themeLabel.classList.remove('text-dark');
+        themeLabel.classList.add('text-white');
+      }
+    });
 
     const addBtn = document.getElementById('addBtn');
     const expenseList = document.getElementById('expenseList');
     const totalAmount = document.getElementById('totalAmount');
-
     let total = 0;
+    let categoryTotals = {};
 
     document.querySelectorAll('.category-item').forEach(item => {
-  item.addEventListener('click', () => {
-    document.getElementById('selectedCategory').value = item.textContent;
+      item.addEventListener('click', () => {
+        document.getElementById('selectedCategory').value = item.textContent;
+        const collapseElement = document.getElementById('collapseCategory');
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseElement);
+        bsCollapse.hide();
+      });
+    });
 
-    // Collapse the accordion manually
-    const collapseElement = document.getElementById('collapseCategory');
-    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseElement);
-    bsCollapse.hide();
-  });
-});
+    const ctx = document.getElementById('expenseChart').getContext('2d');
+    let pieChart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Expenses by Category',
+          data: [],
+          backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.label || '';
+                let value = context.raw || 0;
+                let sum = context.chart._metasets[0].total;
+                let percentage = ((value / sum) * 100).toFixed(2) + '%';
+                return `${label}: ₹${value} (${percentage})`;
+              }
+            }
+          }
+        }
+      }
+    });
 
+    function updateChart() {
+      pieChart.data.labels = Object.keys(categoryTotals);
+      pieChart.data.datasets[0].data = Object.values(categoryTotals);
+      pieChart.update();
+    }
 
     addBtn.addEventListener('click', () => {
       const amount = parseFloat(document.getElementById('amountInput').value);
       const desc = document.getElementById('descInput').value;
       const category = document.getElementById('selectedCategory').value;
-
       if (!amount || !desc || !category) {
         alert('Please fill all fields!');
         return;
@@ -159,16 +168,20 @@ toggleSwitch.addEventListener('change', () => {
       const li = document.createElement('li');
       li.className = 'list-group-item d-flex justify-content-between align-items-center';
       li.innerHTML = `${desc} - ₹${amount} <span class="badge bg-info">${category}</span> <button class="btn-close btn-close-white ms-2" aria-label="Remove"></button>`;
-
       li.querySelector('button').addEventListener('click', () => {
         total -= amount;
         totalAmount.textContent = total;
+        categoryTotals[category] -= amount;
+        if (categoryTotals[category] <= 0) delete categoryTotals[category];
+        updateChart();
         li.remove();
       });
 
       expenseList.appendChild(li);
       total += amount;
       totalAmount.textContent = total;
+      categoryTotals[category] = (categoryTotals[category] || 0) + amount;
+      updateChart();
 
       document.getElementById('amountInput').value = '';
       document.getElementById('descInput').value = '';
